@@ -1,0 +1,11 @@
+# Python misc
+*~
+*.pyc
+__pycache__
+private.py
+
+# Sqlite
+*.db
+
+# Data
+db_data.sql
