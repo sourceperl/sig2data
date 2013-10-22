@@ -11,6 +11,15 @@ MSG_T_INDEX = 0x03
 SENSOR_DB = 'sensor.db'
 #SENSOR_DB = '/usr/local/share/sensor/sensor.db'
 
+# some functions
+def twos_comp(val, bits):
+  """compute the 2's comp of int value val"""
+  """ex: twos_comp(<int16_t>, 16)"""
+  """    twos_comp(<int32_t>, 32)"""
+  if( (val&(1<<(bits-1))) != 0 ):
+    val = val - (1<<bits)
+  return val
+
 # open database
 try:
   conn = sqlite3.connect(SENSOR_DB)
@@ -60,11 +69,11 @@ for message in messages:
       print("duplicate line, skip") 
   # process STAT msg
   elif msg_raw_type == MSG_T_STAT:
-    msg_id_var    = int(msg_pld[2:4],   16)
-    msg_var_max   = int(msg_pld[4:8],   16)
-    msg_var_avg   = int(msg_pld[8:12],  16)
-    msg_var_min   = int(msg_pld[12:16], 16)
-    msg_var_inst  = int(msg_pld[16:20], 16)
+    msg_id_var    = int(msg_pld[2:4], 16)
+    msg_var_max   = twos_comp(int(msg_pld[4:8],   16), 16)
+    msg_var_avg   = twos_comp(int(msg_pld[8:12],  16), 16)
+    msg_var_min   = twos_comp(int(msg_pld[12:16], 16), 16)
+    msg_var_inst  = twos_comp(int(msg_pld[16:20], 16), 16)
 
     # insert into database
     sql_command = ("INSERT INTO sig_stat (`object_id`,`var_id`, " +
@@ -82,4 +91,3 @@ for message in messages:
       conn.commit()
     except sqlite3.IntegrityError:
       print("duplicate line, skip")
- 
