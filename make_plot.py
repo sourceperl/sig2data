@@ -2,6 +2,9 @@
 
 import sys
 import numpy as np
+import matplotlib
+# for use matplotlib without a X display
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import sqlite3
 

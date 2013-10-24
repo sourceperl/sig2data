@@ -9,3 +9,7 @@ private.py
 
 # Data
 db_data.sql
+
+# Private
+ftp.py
+graph.png
