@@ -1,0 +1,10 @@
+Sensor callback notes
+
+- path for callback script
+**************************
+
+by default, apache2 install on debian serve cgi path 
+http://hostname/cgi-bin/<script> from /usr/lib/cgi-bin/<script to call>.
+
+so "sensor_callback.py" must be copy in /usr/lib/cgi-bin/
+

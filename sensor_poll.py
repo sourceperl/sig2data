@@ -29,7 +29,9 @@ td12xx_key  = 0
 # process args
 parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--day_rebuild", type=int,
-                    help="resync local DB with sensor for a number of day")
+                    help="resync local DB for a number of day")
+parser.add_argument("-o", "--obj_id", type=int,
+                    help="resync local DB for this object ID")
 args = parser.parse_args()
 
 if args.day_rebuild:
@@ -49,7 +51,11 @@ conn.row_factory = sqlite3.Row
 c = conn.cursor()  
 
 # search object to poll
-c.execute("SELECT object_id, modem_id, modem_key from objects")
+if (args.obj_id):
+  c.execute("SELECT object_id, modem_id, modem_key from objects where object_id=%d" % args.obj_id)
+else:  
+  c.execute("SELECT object_id, modem_id, modem_key from objects")
+
 objects_rec = c.fetchall()
 
 for row in objects_rec:
