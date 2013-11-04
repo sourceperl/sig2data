@@ -1,0 +1,23 @@
+Things to do for migrate from SQLite to MySQL :
+-----------------------------------------------
+
+1/ Export SQL schema :
+
+sqlite3 my.db .schema > db.struct.sql
+
+2/ Export SQL data :
+
+sqlite3 sensor.db .dump | grep ^INSERT > db.data.sqlite
+
+3/ Take care to data type (SQLIte not really typed but MySQL is...)
+
+gedit db.struct.sql
+
+4/ Convert SQLite data dump format to MySQL syntax (remove ") :
+
+perl -pne s/\"//g db.data.sql > db.data.clean.sql
+
+5/ inject data
+
+mysql -u user -p mydb < db.struct.sql
+mysql -u user -p mydb < db.data.clean.sql

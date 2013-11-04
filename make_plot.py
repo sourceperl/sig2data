@@ -26,13 +26,13 @@ c = conn.cursor()
 sql = ("SELECT " +
       "  date(rx_timestamp, 'unixepoch') as date, " +
       "  object_id, var_id, " +
-      "  MAX(index_p) - MIN(index_p) AS prod, " +
-      "  MAX(index_n) - MIN(index_n) AS cons " +
+      "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
+      "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
       "FROM " +
       "  sig_index " +
       "WHERE " +
-      "  datetime(rx_timestamp, 'unixepoch') LIKE \"2013-10-%\" AND " +
-      "  object_id = 3 "+
+      "  rx_timestamp > strftime('%s', '2013-10-30') AND " + 
+      "  object_id = 4 "+
       "GROUP BY " +
       "  date, var_id")
 c.execute(sql)
@@ -70,7 +70,7 @@ rects2 = plt.bar(index + bar_width, batt_dstk, bar_width,
                  label='destocking')
 
 plt.xlabel('days')
-plt.ylabel('electric charge (in uah)')
+plt.ylabel('electric charge (in mah)')
 plt.title('Lestrem battery reporting')
 plt.xticks(index + bar_width, batt_day)
 plt.legend()
