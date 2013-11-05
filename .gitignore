@@ -12,4 +12,5 @@ db_data.sql
 
 # Private
 ftp.py
-graph.png
+*.png
+*.svg

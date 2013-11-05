@@ -1,37 +1,38 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python
+
+# use matplotlib to build a PNG graph
 
 import sys
+from datetime import datetime
+import time
 import numpy as np
 import matplotlib
 # for use matplotlib without a X display
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import sqlite3
+import MySQLdb as mdb
 
-SENSOR_DB = 'sensor.db'
 
 # open database
 try:
-  conn = sqlite3.connect(SENSOR_DB)
+  conn = mdb.connect('192.168.1.40', 'bee_sigfox_sync', '', 'beedb')
 except:
-  sys.stderr.write("DB connect error")
+  sys.stderr.write("DB connect error\n")
   exit(1)
 
-# access to row by name
-conn.row_factory = sqlite3.Row
-#create db cursor
-c = conn.cursor()
+# create db cursor with access to row by name
+c = conn.cursor(mdb.cursors.DictCursor)  
 
 ## process RAW message
 sql = ("SELECT " +
-      "  date(rx_timestamp, 'unixepoch') as date, " +
-      "  object_id, var_id, " +
+      "  rx_timestamp, object_id, var_id, " +
+      "  date(FROM_UNIXTIME(rx_timestamp)) as date, " +
       "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
       "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
       "FROM " +
       "  sig_index " +
       "WHERE " +
-      "  rx_timestamp > strftime('%s', '2013-10-30') AND " + 
+      "  rx_timestamp > UNIX_TIMESTAMP('2013-10-30') AND " + 
       "  object_id = 4 "+
       "GROUP BY " +
       "  date, var_id")
@@ -43,10 +44,18 @@ batt_dstk  = []
 batt_day   = []
 
 for day_record in day_records:
+  # convert UTC timestamp to localtime datetime string
+  utc_dt = datetime.fromtimestamp(day_record['rx_timestamp'])
+  now_timestamp = time.time()
+  offset = (datetime.fromtimestamp(now_timestamp) - 
+            datetime.utcfromtimestamp(now_timestamp))
+  local_dt = utc_dt + offset
+  # add data to lists
+  batt_day.append(local_dt.strftime ("%d/%m"))
   batt_stk.append(day_record['prod'])
   batt_dstk.append(day_record['cons']) 
-  batt_day.append(day_record['date'].split('-')[2]) 
 
+# draw PNG graph
 fig, ax = plt.subplots()
 
 fig.patch.set_facecolor('blue')
@@ -74,6 +83,7 @@ plt.ylabel('electric charge (in mah)')
 plt.title('Lestrem battery reporting')
 plt.xticks(index + bar_width, batt_day)
 plt.legend()
-
 plt.tight_layout()
-plt.savefig("graph.png",dpi=72)
+plt.savefig("/tmp/lestrem/daily_prod.png",dpi=72)
+
+exit(0)
