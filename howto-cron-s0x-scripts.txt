@@ -1,0 +1,11 @@
+for update cron to launch periodicaly s0x scripts, do this :
+
+sudo mkdir /etc/cron.15m/
+sudo cp -r s01-sensor-poll /etc/cron.15m/
+# do the same for every s0x scripts
+...
+# update crontab
+sudo vim /etc/crontab
+# add this line in the file: "*/15 *  * * *   root    cd / && run-parts --report /etc/cron.15m"
+# reload cron
+sudo /etc/init.d/cron restart
