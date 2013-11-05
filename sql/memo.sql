@@ -12,3 +12,9 @@ WHERE
     object_id = 4
 GROUP BY
   date, object_id, var_id;
+
+/* object : last view */
+SELECT FROM_UNIXTIME( MAX( `rx_timestamp` ) /1000 ) AS last_view, object_id
+FROM `messages`
+GROUP BY `object_id`
+LIMIT 100;
