@@ -1,0 +1,69 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# this script upload data from local DB to Xively
+import xively
+import sys
+import time
+import datetime
+import requests
+import MySQLdb as mdb
+
+# some private const (no push to public repo)
+XIVELY_FEED_ID = ""
+XIVELY_API_KEY = ""
+
+# some consts
+DEBUG     = 1
+
+# open database
+try:
+  conn = mdb.connect('localhost', 'bee_sigfox_sync', '', 'beedb')
+except:
+  sys.stderr.write("DB connect error\n")
+  exit(1)
+
+# create db cursor with access to row by name
+c = conn.cursor(mdb.cursors.DictCursor)
+
+# read temperature
+c.execute("select * from sig_stat where object_id = 2 and var_id = 2 " +
+          "order by rx_timestamp DESC limit 1;")
+stat = c.fetchone()
+
+t_inst  = stat['var_inst']
+t_ts    = datetime.datetime.utcfromtimestamp(stat['rx_timestamp'])
+
+# read pressure
+c.execute("select * from sig_stat where object_id = 2 and var_id = 1 " +
+          "order by rx_timestamp DESC limit 1;")
+stat = c.fetchone()
+
+p_inst  = stat['var_inst']
+p_ts    = datetime.datetime.utcfromtimestamp(stat['rx_timestamp'])
+
+# read solar index (production/consumption)
+c.execute("select * from sig_index where object_id = 1 and var_id = 1 " +
+          "order by rx_timestamp DESC limit 1;")
+index = c.fetchone()
+
+i_solar_p     = index['index_p']
+i_solar_c     = index['index_n']
+i_solar_ts  = datetime.datetime.utcfromtimestamp(index['rx_timestamp'])
+
+# update Xively
+
+api = xively.XivelyAPIClient(XIVELY_API_KEY)
+feed = api.feeds.get(XIVELY_FEED_ID)
+
+#now = datetime.datetime.utcnow()
+
+feed.datastreams = [
+  xively.Datastream(id='temperature', current_value=t_inst/10, at=t_ts),
+  xively.Datastream(id='pressure',    current_value=p_inst/10, at=p_ts),
+  xively.Datastream(id='solar_p',     current_value=i_solar_p, at=i_solar_ts),
+  xively.Datastream(id='solar_c',     current_value=i_solar_c, at=i_solar_ts),
+]
+
+feed.update()
+exit(0)

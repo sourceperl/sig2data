@@ -1,30 +1,26 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
 # this script download messages (last 20) from sensor (cloud-on-chip) 
-# platform to a sqlite DB.
+# platform to MySQL DB
 # objects are list on "objects" table, 
 # the messages are store on "messages" table
 
-# call this script regulary (with crond) for populate "messages" table
+# call this script regulary (with crond) for update "messages" table
 
-# call "sensor_poll.py --help" for args help
+# call "<this_script> --help" for args help
 
 # some libs
 import sys
 import sensor
 import time
 from struct import *
-import sqlite3
+import MySQLdb as mdb
 import argparse
 
 # some consts
-SENSOR_DB   = "sensor.db"
-#SENSOR_DB   = "/usr/local/share/sensor/sensor.db"
 
 # some vars
-td12xx_id   = 0
-td12xx_key  = 0
 
 # process args
 parser = argparse.ArgumentParser()
@@ -37,18 +33,18 @@ args = parser.parse_args()
 if args.day_rebuild:
   print("rebuild turned on for %s day(s)" % args.day_rebuild)
 
+if args.obj_id:
+  print("rebuild turned on for object_id=%s" % args.obj_id)
+
 # open database
 try:
-  conn = sqlite3.connect(SENSOR_DB)
+  conn = mdb.connect('localhost', 'bee_sigfox_sync', '', 'beedb')
 except:
-  print("DB connect error", file=sys.stderr)
+  sys.stderr.write("DB connect error\n")
   exit(1)
 
-# access to row by name
-conn.row_factory = sqlite3.Row
-
-#create db cursor
-c = conn.cursor()  
+# create db cursor with access to row by name
+c = conn.cursor(mdb.cursors.DictCursor)  
 
 # search object to poll
 if (args.obj_id):
@@ -68,7 +64,7 @@ for row in objects_rec:
   device = sensor.Device()
   # get token
   if (not device.set_device(modem_id, modem_key)):
-    print('get token ko !', file=sys.stderr)
+    sys.stderr.write("get token ko !\n")
     exit(2)
 
   # init timestamp for search history end date
@@ -83,7 +79,7 @@ for row in objects_rec:
     msgs = device.get_history(20, until = history_end_search)
     # skip if error
     if msgs == 0:
-      print('sensor return empty history', file=sys.stderr)
+      sys.stderr.write("sensor return empty history\n")
       # exit get loop
       break
 
@@ -110,19 +106,33 @@ for row in objects_rec:
         if (history_max_older - msg_when) > (args.day_rebuild * 24 * 3600 * 1000):
           end_get_loop = True
           break
-      # insert into database
-      sql_command = ("INSERT INTO messages (`message_id`,`object_id`, " +
-                     "`rx_timestamp`, `type`, `payload`, " + 
-                     "`station_id`, `station_lvl`) " + 
-                     "VALUES (NULL, '"+str(object_id)+"','"+str(msg_when)+"', '" +
-                     str(msg_type)+"', '"+str(msg_pld)+
-                     "', '"+str(msg_station)+"', '"+str(msg_lvl)+"');")
+      
+      # check if data is in DB, if not insert it
+      insert_need = False
+      sql_command = ("SELECT * FROM `messages` "+ 
+                     "WHERE `object_id`="+str(object_id)+" "+
+                     "AND `rx_timestamp`="+str(msg_when)+" LIMIT 1;")
       print("%s" % (sql_command))    
       try:
         c.execute(sql_command)
-        conn.commit()
-      except sqlite3.IntegrityError:
-        print("duplicate line, skip")
+        insert_need = (c.rowcount == 0)
+      except mdb.IntegrityError as e:
+        print "--->SQL Error: %s" % e
+      
+      if(insert_need):
+        # insert into database
+        sql_command = ("INSERT INTO messages (`message_id`,`object_id`, " +
+                       "`rx_timestamp`, `type`, `payload`, " + 
+                       "`station_id`, `station_lvl`) " + 
+                       "VALUES (NULL, '"+str(object_id)+"','"+str(msg_when)+"', '" +
+                       str(msg_type)+"', '"+str(msg_pld)+
+                       "', '"+str(msg_station)+"', '"+str(msg_lvl)+"');")
+        print("%s" % (sql_command))    
+        try:
+          c.execute(sql_command)
+          conn.commit()
+        except mdb.IntegrityError as e:
+          print "--->SQL Error: %s" % e
 
     # for next get_history : end_search is last msg_when timestamp
     history_end_search = msg_when

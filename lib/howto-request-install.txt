@@ -1,0 +1,2 @@
+# for debian
+sudo apt-get install python-requests python3-requests
