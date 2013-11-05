@@ -1,66 +1,60 @@
--- MySQL dump 10.13  Distrib 5.5.31, for debian-linux-gnu (armv7l)
+-- phpMyAdmin SQL Dump
+-- version 3.4.11.1deb2
+-- http://www.phpmyadmin.net
 --
--- Host: localhost    Database: sensor
--- ------------------------------------------------------
--- Server version	5.5.31-0+wheezy1
+-- Client: localhost
+-- Généré le: Mar 05 Novembre 2013 à 10:29
+-- Version du serveur: 5.5.31
+-- Version de PHP: 5.4.4-14+deb7u5
 
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
+SET time_zone = "+00:00";
 
 --
--- Table structure for table `messages`
+-- Base de données: `beedb`
 --
 
-DROP TABLE IF EXISTS `messages`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `messages` (
-  `message_id` int(10) unsigned NOT NULL,
+-- --------------------------------------------------------
+
+--
+-- Structure de la table `messages`
+--
+
+CREATE TABLE IF NOT EXISTS `messages` (
+  `message_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `object_id` int(10) unsigned DEFAULT NULL,
   `rx_timestamp` bigint(20) unsigned DEFAULT NULL,
-  `type` varchar(8) DEFAULT NULL,
-  `payload` varchar(20) DEFAULT NULL,
+  `type` varchar(8) COLLATE utf8_unicode_ci DEFAULT NULL,
+  `payload` varchar(20) COLLATE utf8_unicode_ci DEFAULT NULL,
   `station_id` int(10) unsigned DEFAULT NULL,
   `station_lvl` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`message_id`),
   UNIQUE KEY `object_id` (`object_id`,`rx_timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
 
 --
--- Table structure for table `objects`
+-- Structure de la table `objects`
 --
 
-DROP TABLE IF EXISTS `objects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `objects` (
-  `object_id` int(10) unsigned NOT NULL,
+CREATE TABLE IF NOT EXISTS `objects` (
+  `object_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `modem_id` int(10) unsigned DEFAULT NULL,
   `modem_key` int(10) unsigned DEFAULT NULL,
-  `object_name` text,
+  `object_name` text COLLATE utf8_unicode_ci,
   PRIMARY KEY (`object_id`),
   UNIQUE KEY `modem_id` (`modem_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
 
 --
--- Table structure for table `sig_index`
+-- Structure de la table `sig_index`
 --
 
-DROP TABLE IF EXISTS `sig_index`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sig_index` (
-  `id` int(10) unsigned NOT NULL,
+CREATE TABLE IF NOT EXISTS `sig_index` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `object_id` int(10) unsigned DEFAULT NULL,
   `var_id` int(10) unsigned DEFAULT NULL,
   `rx_timestamp` bigint(20) unsigned DEFAULT NULL,
@@ -68,18 +62,16 @@ CREATE TABLE `sig_index` (
   `index_n` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `object_id` (`object_id`,`var_id`,`rx_timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
 
 --
--- Table structure for table `sig_stat`
+-- Structure de la table `sig_stat`
 --
 
-DROP TABLE IF EXISTS `sig_stat`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sig_stat` (
-  `id` int(10) unsigned NOT NULL,
+CREATE TABLE IF NOT EXISTS `sig_stat` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `object_id` int(10) unsigned DEFAULT NULL,
   `var_id` int(10) unsigned DEFAULT NULL,
   `rx_timestamp` int(10) unsigned DEFAULT NULL,
@@ -89,31 +81,18 @@ CREATE TABLE `sig_stat` (
   `var_inst` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `object_id` (`object_id`,`var_id`,`rx_timestamp`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+-- --------------------------------------------------------
 
 --
--- Table structure for table `vars`
+-- Structure de la table `vars`
 --
 
-DROP TABLE IF EXISTS `vars`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `vars` (
-  `id` int(11) NOT NULL,
-  `var_name` varchar(30) DEFAULT NULL,
+CREATE TABLE IF NOT EXISTS `vars` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `var_name` varchar(30) COLLATE utf8_unicode_ci DEFAULT NULL,
   `var` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2013-11-04 15:33:30
