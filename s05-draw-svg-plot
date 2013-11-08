@@ -10,7 +10,7 @@ import MySQLdb as mdb
 
 # open database
 try:
-  conn = mdb.connect('192.168.1.40', 'bee_sigfox_sync', '', 'beedb')
+  conn = mdb.connect('localhost', 'bee_sigfox_sync', '', 'beedb')
 except:
   sys.stderr.write("DB connect error\n")
   exit(1)
@@ -18,11 +18,49 @@ except:
 # create db cursor with access to row by name
 c = conn.cursor(mdb.cursors.DictCursor)
 
-## process RAW message
+### Production graph
+## do SELECT
+sql = ("SELECT " +
+      "  rx_timestamp, object_id, var_id, " +
+      "  date(FROM_UNIXTIME(rx_timestamp)) as date, " +
+      "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
+      "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
+      "FROM " +
+      "  sig_index " +
+      "WHERE " +
+      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 7 DAY) AND " + 
+      "  object_id = 4 "+
+      "GROUP BY " +
+      "  date, var_id")
+c.execute(sql)
+day_records = c.fetchall()
+
+batt_stk   = []
+batt_dstk  = []
+batt_day   = []
+
+for day_record in day_records:
+  local_dt = datetime.fromtimestamp(day_record['rx_timestamp'])
+  # add data to lists
+  batt_day.append(local_dt.strftime ("%d/%m"))
+  batt_stk.append(round(day_record['prod']))
+  batt_dstk.append(round(day_record['cons']))
+
+# draw SVG
+chart = pygal.Bar(margin=50)
+chart.title = ("Lestrem production hebdomadaire (en mah)")
+chart.x_labels = batt_day
+chart.add('production',  batt_stk)
+chart.add('consommation', batt_dstk)
+chart.render_to_file('/usr/local/share/sensor/week_production.svg')
+
+
+### Current graph
+## do SELECT
 sql = ("SELECT"+ 
        "  rx_timestamp, var_min, var_avg, var_max "+
        "FROM sig_stat WHERE object_id = 4 "+
-       "ORDER BY rx_timestamp DESC LIMIT 12;")
+       "ORDER BY rx_timestamp DESC LIMIT 16;")
 c.execute(sql)
 
 records = c.fetchall()
@@ -33,12 +71,13 @@ sql_c_avg    = []
 sql_c_max    = []
 
 for record in records:
+  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
   # convert UTC timestamp to localtime datetime string
-  utc_dt = datetime.fromtimestamp(record['rx_timestamp'])
-  now_timestamp = time.time()
-  offset = (datetime.fromtimestamp(now_timestamp) - 
-            datetime.utcfromtimestamp(now_timestamp))
-  local_dt = utc_dt + offset
+  #utc_dt = datetime.fromtimestamp(record['rx_timestamp'])
+  #now_timestamp = time.time()
+  #offset = (datetime.fromtimestamp(now_timestamp) - 
+  #          datetime.utcfromtimestamp(now_timestamp))
+  #local_dt = utc_dt + offset
   # add data to lists
   sql_datetime.append(local_dt.strftime ("%Y-%m-%d %H:%M:%S"))
   sql_c_min.append(record['var_min'])
@@ -53,15 +92,15 @@ sql_c_max.reverse()
 
 # draw SVG
 line_chart = pygal.Line()
-line_chart.title = ("Lestrem battery average current (+ -> fill, - -> empty) "+
-                    "for last 3 hours")
-line_chart.x_title = "date and time"
-line_chart.y_title = "current (in ma)"
+line_chart.title = ("Lestrem courant de batterie moyen (+ -> charge, - -> decharge) "+
+                    "par 3 heures")
+line_chart.x_title = "date et heure"
+line_chart.y_title = "courant (en ma)"
 line_chart.x_labels = sql_datetime
 line_chart.x_label_rotation = 45
-line_chart.add("MIN Current", sql_c_min)
-line_chart.add("AVG Current", sql_c_avg)
-line_chart.add("MAX Current", sql_c_max)
-line_chart.render_to_file('/tmp/lestrem/36h_current.svg')
+line_chart.add("MIN", sql_c_min)
+line_chart.add("AVG", sql_c_avg)
+line_chart.add("MAX", sql_c_max)
+line_chart.render_to_file('/usr/local/share/sensor/36h_current.svg')
 exit(0)
 
