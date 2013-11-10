@@ -107,32 +107,22 @@ for row in objects_rec:
           end_get_loop = True
           break
       
-      # check if data is in DB, if not insert it
-      insert_need = False
-      sql_command = ("SELECT * FROM `messages` "+ 
-                     "WHERE `object_id`="+str(object_id)+" "+
-                     "AND `rx_timestamp`="+str(msg_when)+" LIMIT 1;")
+      # insert into database (check if already exist for not ++id in InnoDB)
+      sql_command = ("INSERT INTO messages (`message_id`,`object_id`, "+
+                     "`rx_timestamp`, `type`, `payload`, "+ 
+                     "`station_id`, `station_lvl`) "+ 
+                     "SELECT NULL, '"+str(object_id)+"','"+str(msg_when)+
+                     "', '" +str(msg_type)+"', '"+str(msg_pld)+
+                     "', '"+str(msg_station)+"', '"+str(msg_lvl)+"' FROM DUAL "+
+                     "WHERE NOT EXISTS (SELECT * FROM `messages` "+
+                     "WHERE `object_id`="+str(object_id)+" AND `rx_timestamp`="+
+                     str(msg_when)+" LIMIT 1);")
       print("%s" % (sql_command))    
       try:
         c.execute(sql_command)
-        insert_need = (c.rowcount == 0)
+        conn.commit()
       except mdb.IntegrityError as e:
         print "--->SQL Error: %s" % e
-      
-      if(insert_need):
-        # insert into database
-        sql_command = ("INSERT INTO messages (`message_id`,`object_id`, " +
-                       "`rx_timestamp`, `type`, `payload`, " + 
-                       "`station_id`, `station_lvl`) " + 
-                       "VALUES (NULL, '"+str(object_id)+"','"+str(msg_when)+"', '" +
-                       str(msg_type)+"', '"+str(msg_pld)+
-                       "', '"+str(msg_station)+"', '"+str(msg_lvl)+"');")
-        print("%s" % (sql_command))    
-        try:
-          c.execute(sql_command)
-          conn.commit()
-        except mdb.IntegrityError as e:
-          print "--->SQL Error: %s" % e
 
     # for next get_history : end_search is last msg_when timestamp
     history_end_search = msg_when
