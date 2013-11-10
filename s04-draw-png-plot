@@ -15,7 +15,7 @@ import MySQLdb as mdb
 
 # open database
 try:
-  conn = mdb.connect('192.168.1.40', 'bee_sigfox_sync', '', 'beedb')
+  conn = mdb.connect('localhost', 'bee_sigfox_sync', '', 'beedb')
 except:
   sys.stderr.write("DB connect error\n")
   exit(1)
@@ -84,6 +84,6 @@ plt.title('Lestrem battery reporting')
 plt.xticks(index + bar_width, batt_day)
 plt.legend()
 plt.tight_layout()
-plt.savefig("/tmp/lestrem/daily_prod.png",dpi=72)
+plt.savefig("/usr/local/share/sensor/daily_prod.png",dpi=72)
 
 exit(0)

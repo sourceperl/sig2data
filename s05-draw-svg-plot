@@ -1,12 +1,26 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 # use pygal to build a PNG graph
 
 import sys
 import pygal
+from pygal.style import Style
 from datetime import datetime
 import time
 import MySQLdb as mdb
+
+# some vars
+svg_custom_style = Style(
+#  background='transparent',
+#  plot_background='transparent',
+#  foreground='#53E89B',
+#  foreground_light='#53A0E8',
+#  foreground_dark='#630C0D',
+#  opacity='.6',
+#  opacity_hover='.9',
+#  transition='400ms ease-in',
+  colors=('#FFA500', '#800080'))
 
 # open database
 try:
@@ -29,6 +43,7 @@ sql = ("SELECT " +
       "  sig_index " +
       "WHERE " +
       "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 7 DAY) AND " + 
+      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
       "  object_id = 4 "+
       "GROUP BY " +
       "  date, var_id")
@@ -47,11 +62,15 @@ for day_record in day_records:
   batt_dstk.append(round(day_record['cons']))
 
 # draw SVG
-chart = pygal.Bar(margin=50)
-chart.title = ("Lestrem production hebdomadaire (en mah)")
+chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+chart.title = (u"Lestrem production hebdomadaire (en mAh)")
+chart.x_title = u"date et heure"
+chart.y_title = u"charge électrique (en mAh)"
 chart.x_labels = batt_day
-chart.add('production',  batt_stk)
-chart.add('consommation', batt_dstk)
+
+chart.add(u"Prodution",    batt_stk)
+chart.add(u"Consommation", batt_dstk)
+
 chart.render_to_file('/usr/local/share/sensor/week_production.svg')
 
 
@@ -92,15 +111,15 @@ sql_c_max.reverse()
 
 # draw SVG
 line_chart = pygal.Line()
-line_chart.title = ("Lestrem courant de batterie moyen (+ -> charge, - -> decharge) "+
-                    "par 3 heures")
-line_chart.x_title = "date et heure"
-line_chart.y_title = "courant (en ma)"
+line_chart.title = (u"Lestrem courant de batterie moyen (+ -> charge, - -> decharge) "+
+                    u"par 3 heures")
+line_chart.x_title = u"date et heure"
+line_chart.y_title = u"courant (en mA)"
 line_chart.x_labels = sql_datetime
 line_chart.x_label_rotation = 45
-line_chart.add("MIN", sql_c_min)
-line_chart.add("AVG", sql_c_avg)
-line_chart.add("MAX", sql_c_max)
+line_chart.add(u"MIN", sql_c_min)
+line_chart.add(u"AVG", sql_c_avg)
+line_chart.add(u"MAX", sql_c_max)
 line_chart.render_to_file('/usr/local/share/sensor/36h_current.svg')
 exit(0)
 
