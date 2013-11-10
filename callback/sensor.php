@@ -14,9 +14,9 @@ $stat_ip = $_SERVER['REMOTE_ADDR'];
 $ua      = $_SERVER['HTTP_USER_AGENT'];
 
 // manage POST param
-$cb_msg = stripcslashes($_POST['callback']);
-$appid  = stripcslashes($_POST['appid']);
-$appkey  = stripcslashes($_POST['appkey']);
+$cb_msg = isset($_POST['callback']) ? stripcslashes($_POST['callback']) : "";
+$appid  = isset($_POST['appid'])    ? stripcslashes($_POST['appid'])    : "";
+$appkey = isset($_POST['appkey'])   ? stripcslashes($_POST['appkey'])   : "";
 
 // check the app key
 $result = $mysqli->query("SELECT id FROM `vars` ".
@@ -27,6 +27,7 @@ if ($result->num_rows == 0) {
   $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) VALUES (NULL, ".
                  "NOW(), 'err: app_key not valid, connect from IP: ".$stat_ip.
                  "/".$ua."');");
+  $mysqli->close();
   exit();
 }
 
@@ -37,6 +38,7 @@ if ($data === null) {
   $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) ".
                  "VALUES (NULL, NOW(), 'err: json_decode return null json: ".
                  $cb_msg."');");
+  $mysqli->close();
   exit();
 } else {
   $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) ".
@@ -59,27 +61,28 @@ if ($result->num_rows == 0) {
   // log error and exit script
   $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) ".
                  "VALUES (NULL, NOW(), 'err: unknown object uid: ".$uid."');");
+  $mysqli->close();
   exit();
 }
 $row = $result->fetch_assoc();
 $obj_id = $row['object_id'];
 
-// check if data is already in DB
-$result = $mysqli->query("SELECT message_id FROM `message` WHERE object_id='".
-                         $obj_id."' AND rx_timestamp='".$timestamp."';");
-if ($result->num_rows == 0) {
-  // log error and exit script
-  $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) VALUES (NULL, ".
-                 "NOW(), 'err: msg already in DB for obj ID/timestamp".
-                 $obj_id."/".$timestamp.");");
-  exit();
-}
-
-// write to DB
+// insert in DB, if not already exist (if polling value or duplicate callback)
 $sql = "INSERT INTO `messages` (`message_id`, `object_id`, "
        ."`rx_timestamp`, `type`, `payload`, `station_id`, `station_lvl`) "
-       ."VALUES (NULL, '".$obj_id."', '".$timestamp."', '".$msg_type."', '"
-       .$msg_payload."', '".$station_id."', '".$station_lvl."');";
+       ."SELECT NULL, '".$obj_id."', '".$timestamp."', '".$msg_type."', '"
+       .$msg_payload."', '".$station_id."', '".$station_lvl."' FROM DUAL "
+       ."WHERE NOT EXISTS (SELECT * FROM `messages` WHERE `object_id` = '"
+       .$obj_id."' AND `rx_timestamp`= '".$timestamp."' LIMIT 1);";
 $mysqli->query($sql);
+// check if insert or not (= duplicate)
+if ($mysqli->affected_rows == 0) {
+  // log warning
+  $mysqli->query("INSERT INTO debug_log (`id`, `date`, `text`) "
+                 ."VALUES (NULL, NOW(), "
+                 ."'warn: callback duplicate obj_id/timestamp: "
+                 .$obj_id."/".$timestamp."');");
+}
 $mysqli->close();
+exit()
 ?>
