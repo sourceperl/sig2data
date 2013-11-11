@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 import sys
 import time
 import datetime
@@ -37,45 +38,35 @@ c.execute("select * from messages where type = 'raw' and message_id > '" +
 messages = c.fetchall()
 
 for message in messages:
-  message_id    = message['message_id'] 
+  message_id    = message['message_id']
   object_id     = message['object_id']
   msg_timestamp = round(message['rx_timestamp']/1000)
   msg_pld       = message['payload']
   msg_raw_type = int(msg_pld[0:2], 16)
   # process INDEX msg
-  if msg_raw_type == MSG_T_INDEX: 
+  if msg_raw_type == MSG_T_INDEX:
     msg_id_var   = int(msg_pld[2:4], 16)
     msg_index_p  = int(msg_pld[4:12], 16)
     msg_index_n  = int(msg_pld[12:20], 16)
 
-    # check if data is in DB, if not insert it
-    insert_need = False
-    sql_command = ("SELECT * FROM `sig_index` "+
+    # insert into database if not already exist
+    sql_command = ("INSERT INTO sig_index (`object_id`,`var_id`, " +
+                   "`rx_timestamp`, `index_p`, `index_n`) " +
+                   "SELECT '"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
+                   str(msg_timestamp)+"', '"+str(msg_index_p)+"', '" +
+                   str(msg_index_n)+"' FROM DUAL WHERE NOT EXISTS ("+
+                   "SELECT * FROM `sig_index` "+
                    "WHERE `object_id`="+str(object_id)+" "+
                    "AND `rx_timestamp`="+str(msg_timestamp)+" "+
-                   "AND `var_id`="+str(msg_id_var)+" LIMIT 1;")
+                   "AND `var_id`="+str(msg_id_var)+" LIMIT 1);")
     print("%s" % (sql_command))
     try:
       c.execute(sql_command)
-      insert_need = (c.rowcount == 0)
+      c.execute("UPDATE vars SET var='"+ str(message_id) + "' "+
+                "WHERE var_name='id_last_msg_populate';")
+      conn.commit()
     except mdb.IntegrityError as e:
       print "--->SQL Error: %s" % e
-
-    if(insert_need):
-      # insert into database
-      sql_command = ("INSERT INTO sig_index (`object_id`,`var_id`, " +
-                     "`rx_timestamp`, `index_p`, `index_n`) " + 
-                     "VALUES ('"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
-                     str(msg_timestamp)+"', '"+str(msg_index_p)+"', '" +
-                     str(msg_index_n)+"');")
-      print("%s" % (sql_command))    
-      try:
-        c.execute(sql_command)
-        c.execute("UPDATE vars SET var='"+ str(message_id) + "' "+
-                  "WHERE var_name='id_last_msg_populate';")
-        conn.commit()
-      except mdb.IntegrityError as e:
-        print "--->SQL Error: %s" % e
   # process STAT msg
   elif msg_raw_type == MSG_T_STAT:
     msg_id_var    = int(msg_pld[2:4], 16)
@@ -84,39 +75,29 @@ for message in messages:
     msg_var_min   = twos_comp(int(msg_pld[12:16], 16), 16)
     msg_var_inst  = twos_comp(int(msg_pld[16:20], 16), 16)
 
-    # check if data is in DB, if not insert it
-    insert_need = False
-    sql_command = ("SELECT * FROM `sig_stat` "+
+    # insert into database if not already exist
+    sql_command = ("INSERT INTO sig_stat (`object_id`,`var_id`, " +
+                   "`rx_timestamp`, `var_max`, `var_avg`, `var_min`, " +
+                   "`var_inst`) " +
+                   "SELECT '"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
+                   str(msg_timestamp)+"', '"+str(msg_var_max)+"', '" +
+                   str(msg_var_avg)+"', '"+str(msg_var_min)+"', '" +
+                   str(msg_var_inst)+"' FROM DUAL WHERE NOT EXISTS ("+
+                   "SELECT * FROM `sig_stat` "+
                    "WHERE `object_id`="+str(object_id)+" "+
                    "AND `rx_timestamp`="+str(msg_timestamp)+" "+
-                   "AND `var_id`="+str(msg_id_var)+" LIMIT 1;")
+                   "AND `var_id`="+str(msg_id_var)+" LIMIT 1);")
     print("%s" % (sql_command))
     try:
       c.execute(sql_command)
-      insert_need = (c.rowcount == 0)
+      conn.commit()
     except mdb.IntegrityError as e:
       print "--->SQL Error: %s" % e
 
-    if(insert_need):
-      # insert into database
-      sql_command = ("INSERT INTO sig_stat (`object_id`,`var_id`, " +
-                     "`rx_timestamp`, `var_max`, `var_avg`, `var_min`, " +
-                     "`var_inst`) " + 
-                     "VALUES ('"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
-                     str(msg_timestamp)+"', '"+str(msg_var_max)+"', '" +
-                     str(msg_var_avg)+"', '"+str(msg_var_min)+"', '" +
-                     str(msg_var_inst)+"');")
-      print("%s" % (sql_command))    
-      try:
-        c.execute(sql_command)
-        conn.commit()
-      except mdb.IntegrityError as e:
-        print "--->SQL Error: %s" % e
-  
   try:
     # store last populate message ID
     c.execute("UPDATE vars SET var='"+ str(message_id) + "' "+
-            "WHERE var_name='id_last_msg_populate';")
+              "WHERE var_name='id_last_msg_populate';")
     conn.commit()
   except mdb.IntegrityError as e:
     print "--->SQL Error: %s" % e
