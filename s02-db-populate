@@ -39,11 +39,11 @@ except:
 c = conn.cursor(mdb.cursors.DictCursor)
 
 # retrive the 'id_last_msg_populate'
-c.execute("select * from vars where var_name = 'id_last_msg_populate' limit 1;")
+c.execute("select * from `sig_vars` where var_name = 'id_last_msg_populate' limit 1;")
 id_last_msg_populate = c.fetchone()['var']
 
 # process message
-c.execute("select * from messages where message_id > '" +
+c.execute("select * from `sig_messages` where message_id > '" +
           str(id_last_msg_populate) +"' order by message_id asc limit 1000;")
 messages = c.fetchall()
 
@@ -71,7 +71,7 @@ for message in messages:
       msg_index_n  = int(msg_pld[12:20], 16)
 
       # insert into database if not already exist
-      sql_command = ("INSERT INTO sig_index (`object_id`,`var_id`, " +
+      sql_command = ("INSERT INTO `sig_index` (`object_id`,`var_id`, " +
                      "`rx_timestamp`, `index_p`, `index_n`) " +
                      "SELECT '"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
                      str(msg_timestamp)+"', '"+str(msg_index_p)+"', '" +
@@ -83,7 +83,7 @@ for message in messages:
       print("%s" % (sql_command))
       try:
         c.execute(sql_command)
-        c.execute("UPDATE vars SET var='"+ str(message_id) + "' "+
+        c.execute("UPDATE `sig_vars` SET var='"+ str(message_id) + "' "+
                   "WHERE var_name='id_last_msg_populate';")
         conn.commit()
       except mdb.IntegrityError as e:
@@ -97,7 +97,7 @@ for message in messages:
       msg_var_inst  = twos_comp(int(msg_pld[16:20], 16), 16)
 
       # insert into database if not already exist
-      sql_command = ("INSERT INTO sig_stat (`object_id`,`var_id`, " +
+      sql_command = ("INSERT INTO `sig_stat` (`object_id`,`var_id`, " +
                      "`rx_timestamp`, `var_max`, `var_avg`, `var_min`, " +
                      "`var_inst`) " +
                      "SELECT '"+str(object_id)+"', '"+str(msg_id_var)+"', '" +
@@ -119,7 +119,7 @@ for message in messages:
 
   try:
     # store last populate message ID
-    c.execute("UPDATE vars SET var='"+ str(message_id) + "' "+
+    c.execute("UPDATE `sig_vars` SET var='"+ str(message_id) + "' "+
               "WHERE var_name='id_last_msg_populate';")
     conn.commit()
   except mdb.IntegrityError as e:

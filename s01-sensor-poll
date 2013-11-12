@@ -3,10 +3,10 @@
 
 # this script download messages (last 20) from sensor (cloud-on-chip) 
 # platform to MySQL DB
-# objects are list on "objects" table, 
-# the messages are store on "messages" table
+# objects are list on "sig_objects" table,
+# the messages are store on "sig_messages" table
 
-# call this script regulary (with crond) for update "messages" table
+# call this script regulary (with crond) for update "sig_messages" table
 
 # call "<this_script> --help" for args help
 
@@ -28,12 +28,17 @@ parser.add_argument("-r", "--day_rebuild", type=int,
                     help="resync local DB for a number of day")
 parser.add_argument("-o", "--obj_id", type=int,
                     help="resync local DB for this object ID")
+parser.add_argument("-v", "--verbosity", type=int, choices=[0, 1, 2],
+                    help="increase output verbosity")
 args = parser.parse_args()
 
-if args.day_rebuild:
+if args.verbosity:
+  print("verbosity level %s" % args.verbosity)
+
+if args.verbosity and args.day_rebuild:
   print("rebuild turned on for %s day(s)" % args.day_rebuild)
 
-if args.obj_id:
+if args.verbosity and args.obj_id:
   print("rebuild turned on for object_id=%s" % args.obj_id)
 
 # open database
@@ -44,13 +49,14 @@ except:
   exit(1)
 
 # create db cursor with access to row by name
-c = conn.cursor(mdb.cursors.DictCursor)  
+c = conn.cursor(mdb.cursors.DictCursor)
 
 # search object to poll
 if (args.obj_id):
-  c.execute("SELECT object_id, modem_id, modem_key from objects where object_id=%d" % args.obj_id)
-else:  
-  c.execute("SELECT object_id, modem_id, modem_key from objects")
+  c.execute("SELECT object_id, modem_id, modem_key from `sig_objects` "+
+            "WHERE object_id=%d" % args.obj_id)
+else:
+  c.execute("SELECT object_id, modem_id, modem_key from `sig_objects`")
 
 objects_rec = c.fetchall()
 
@@ -58,7 +64,8 @@ for row in objects_rec:
   object_id  = row['object_id']
   modem_id  = format(row['modem_id'], "04X")
   modem_key = format(row['modem_key'], "08X")
-  print("*** new request: [OBJ_ID = %d, MOD_ID = %s]" % (object_id, modem_id))
+  if (args.verbosity >= 1):
+   print("*** request: [OBJ_ID = %d, MOD_ID = %s]" % (object_id, modem_id))
 
   # use sensor object
   device = sensor.Device()
@@ -72,7 +79,7 @@ for row in objects_rec:
   history_max_older  = 0
   last_get_loop      = False
   end_get_loop       = False
-  
+
   # get loop
   while True:
     # get message history
@@ -85,47 +92,56 @@ for row in objects_rec:
 
     # last get request (sensor return less of 20 msgs : sensor reach end of db)
     if (len(msgs) != 20):
+      # log message
+      if (args.verbosity >= 1):
+        print("receive %s instead of 20, it's last get loop" % len(msgs))
       last_get_loop = True
-   
+
     for msg in msgs:
       # test and format vars from JSON, process KeyError if json vars is not set
       try:
-        msg_when = msg['when'] 
+        msg_timestamp = msg['received']/1000
         msg_type = msg['type']
         msg_station = int(msg['station'], 16)
         msg_lvl = round(float(msg['lvl']))
-        msg_pld = msg['payload']   
+        msg_pld = msg['payload']
       # next message if json var missing
       except KeyError:
         continue
       # set "age" vars
-      if (history_max_older < msg_when):
-        history_max_older = msg_when     
-      
+      if (history_max_older < msg_timestamp):
+        history_max_older = msg_timestamp
+
       if args.day_rebuild:
-        if (history_max_older - msg_when) > (args.day_rebuild * 24 * 3600 * 1000):
+        if (history_max_older - msg_timestamp) > (args.day_rebuild * 24 * 3600):
+          # log exit message
+          if (args.verbosity >= 1):
+            print("reach max older message, exit")
           end_get_loop = True
           break
-      
+
       # insert into database (check if already exist for not ++id in InnoDB)
-      sql_command = ("INSERT INTO messages (`message_id`,`object_id`, "+
-                     "`rx_timestamp`, `type`, `payload`, "+ 
-                     "`station_id`, `station_lvl`) "+ 
-                     "SELECT NULL, '"+str(object_id)+"','"+str(msg_when)+
+      sql_command = ("INSERT INTO `sig_messages` (`message_id`,`object_id`, "+
+                     "`rx_timestamp`, `type`, `payload`, "+
+                     "`station_id`, `station_lvl`) "+
+                     "SELECT NULL, '"+str(object_id)+"','"+str(msg_timestamp)+
                      "', '" +str(msg_type)+"', '"+str(msg_pld)+
                      "', '"+str(msg_station)+"', '"+str(msg_lvl)+"' FROM DUAL "+
-                     "WHERE NOT EXISTS (SELECT * FROM `messages` "+
+                     "WHERE NOT EXISTS (SELECT * FROM `sig_messages` "+
                      "WHERE `object_id`="+str(object_id)+" AND `rx_timestamp`="+
-                     str(msg_when)+" LIMIT 1);")
-      print("%s" % (sql_command))    
+                     str(msg_timestamp)+" LIMIT 1);")
+      if (args.verbosity >= 2):
+        print("SQL: %s" % (sql_command))
       try:
         c.execute(sql_command)
+        if (args.verbosity >= 1):
+          print("row insert: %d [OBJ_ID = %d, MOD_ID = %s, MSG_TIMESTAMP = %d]" % (c.rowcount, object_id, modem_id, msg_timestamp))
         conn.commit()
       except mdb.IntegrityError as e:
         print "--->SQL Error: %s" % e
 
-    # for next get_history : end_search is last msg_when timestamp
-    history_end_search = msg_when
+    # for next get_history : end_search is last msg_timestamp
+    history_end_search = msg_timestamp * 1000
 
     # end of the get loop : - not in rebuild mode
     #                       - it's last get (get return less than 20 messages)
