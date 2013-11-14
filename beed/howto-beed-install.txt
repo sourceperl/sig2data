@@ -1,2 +1,5 @@
+# dependancy
+sudo apt-get install python-daemon
+# add bin
 sudo cp beed /usr/local/bin/
 sudo chmod +x /usr/local/bin/beed
