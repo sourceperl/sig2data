@@ -1,0 +1,7 @@
+running the command :
+  sudo update-rc.d myservice.sh defaults
+
+-> symbolic links set in /etc/rc.x dir
+
+check symbolic link with :
+  ls -l /etc/rc?.d/*myservice.sh
