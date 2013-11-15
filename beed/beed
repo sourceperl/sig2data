@@ -1,12 +1,8 @@
 #!/usr/bin/python2.7
 # -*- coding: utf-8 -*-
 
-import sys
-import os
-import grp
 import signal
 import daemon
-import lockfile
 import string
 import time
 import datetime
@@ -18,6 +14,10 @@ from subprocess import Popen
 # some consts
 MSG_T_STAT  = 0x02
 MSG_T_INDEX = 0x03
+
+# time in s between every cycle
+BEED_POLL_CYCLE = 4
+BEED_LOG_FILE   = "/var/log/beed.log"
 
 # some global vars
 main_logger = None
@@ -51,7 +51,7 @@ def main_loop_task():
 
   # process message
   c.execute("select * from `sig_messages` where message_id > '" +
-            str(id_last_msg_populate) +"' order by message_id asc limit 1000;")
+            str(id_last_msg_populate) +"' order by message_id asc limit 10;")
   messages = c.fetchall()
 
   for message in messages:
@@ -119,6 +119,10 @@ def main_loop_task():
           conn.commit()
         except mdb.IntegrityError as e:
           main_logger.error("SQL Error: %s" % e)
+      # process unknown msg
+      else:
+        raise SigMsgError("raw message have unknown type (#%d)" % msg_raw_type, message_id)
+
     except SigMsgError as e:
       main_logger.warning("SigMsgError: %s for message id %s" % (e.err_str, e.msg_id))
 
@@ -146,7 +150,7 @@ def bee_main_program():
     # main daemon code
     main_loop_task()
     # wait next pool
-    time.sleep(4)
+    time.sleep(BEED_POLL_CYCLE)
 
 # startup code
 if __name__ == "__main__":
@@ -154,7 +158,7 @@ if __name__ == "__main__":
   # log setup
   main_logger = logging.getLogger(__name__)
   main_logger.setLevel(logging.DEBUG)
-  filehandler = logging.handlers.RotatingFileHandler("/tmp/beed.log", maxBytes = 1024 * 1024, backupCount = 5)
+  filehandler = logging.handlers.RotatingFileHandler(BEED_LOG_FILE, maxBytes = 100 * 1024, backupCount = 2)
   formatter = logging.Formatter("%(asctime)s - %(name)s - "+
                                 "%(levelname)s - %(message)s")
   filehandler.setFormatter(formatter)
