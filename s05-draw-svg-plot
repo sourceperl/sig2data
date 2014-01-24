@@ -32,7 +32,7 @@ except:
 # create db cursor with access to row by name
 c = conn.cursor(mdb.cursors.DictCursor)
 
-### Production graph
+### Production/Consumption graph by day
 ## do SELECT
 sql = ("SELECT " +
       "  rx_timestamp, object_id, var_id, " +
@@ -63,18 +63,103 @@ for day_record in day_records:
 
 # draw SVG
 chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
-chart.title = (u"Lestrem production hebdomadaire (en mAh)")
-chart.x_title = u"date et heure"
+chart.title = (u"Lestrem production journalière (en mAh)")
+chart.x_title = u"journée"
 chart.y_title = u"charge électrique (en mAh)"
 chart.x_labels = batt_day
 
-chart.add(u"Prodution",    batt_stk)
+chart.add(u"Production",    batt_stk)
 chart.add(u"Consommation", batt_dstk)
 
 chart.render_to_file('/usr/local/share/sensor/week_production.svg')
 
 
-### Current graph
+### Production graph (by month)
+## do SELECT
+sql = ("SELECT " +
+      "  rx_timestamp, object_id, var_id, " +
+      "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%m-%Y') as date, " +
+      "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
+      "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
+      "FROM " +
+      "  sig_index " +
+      "WHERE " +
+      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 365 DAY) AND " + 
+      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
+      "  object_id = 4 "+
+      "GROUP BY " +
+      "  date, var_id " +
+      "ORDER BY " +
+      "  rx_timestamp")
+c.execute(sql)
+records = c.fetchall()
+
+batt_stk   = []
+batt_dstk  = []
+batt_day   = []
+
+for record in records:
+  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
+  # add data to lists
+  batt_day.append(local_dt.strftime ("%m/%Y"))
+  batt_stk.append(round(record['prod']))
+  batt_dstk.append(round(record['cons']))
+
+# draw SVG
+chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+chart.title = (u"Lestrem production mensuelle (en mAh)")
+chart.x_title = u"mois de l'année"
+chart.y_title = u"charge électrique (en mAh)"
+chart.x_labels = batt_day
+
+chart.add(u"Production",    batt_stk)
+chart.add(u"Consommation", batt_dstk)
+
+chart.render_to_file('/usr/local/share/sensor/month_production.svg')
+
+
+### Production graph (for a month by day)
+## do SELECT
+sql = ("SELECT " +
+      "  rx_timestamp, object_id, var_id, " +
+      "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%d-%m') as date, " +
+      "  ((MAX(index_p) - MIN(index_p))/1000) - " +
+      "  ((MAX(index_n) - MIN(index_n))/1000) AS prod " +
+      "FROM " +
+      "  sig_index " +
+      "WHERE " +
+      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 31 DAY) AND " + 
+      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
+      "  object_id = 4 "+
+      "GROUP BY " +
+      "  date, var_id " +
+      "ORDER BY " +
+      "  rx_timestamp")
+c.execute(sql)
+records = c.fetchall()
+
+batt_stk   = []
+batt_day   = []
+
+for record in records:
+  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
+  # add data to lists
+  batt_day.append(local_dt.strftime ("%d"))
+  batt_stk.append(round(record['prod']))
+
+# draw SVG
+chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+chart.title = (u"Lestrem production mensuelle derniers 31 jours (en mAh)")
+chart.x_title = u"journée"
+chart.y_title = u"charge électrique (en mAh)"
+chart.x_labels = batt_day
+
+chart.add(u"Production",    batt_stk)
+
+chart.render_to_file('/usr/local/share/sensor/by_day_production.svg')
+
+
+### Current graph (min, max, avg)
 ## do SELECT
 sql = ("SELECT"+ 
        "  rx_timestamp, var_min, var_avg, var_max "+
