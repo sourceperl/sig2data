@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# use pygal to build a PNG graph
+# use pygal to build a SVG graph
 
 import sys
 import pygal
@@ -33,178 +33,202 @@ except:
 c = conn.cursor(mdb.cursors.DictCursor)
 
 ### Production/Consumption graph by day
-## do SELECT
-sql = ("SELECT " +
-      "  rx_timestamp, object_id, var_id, " +
-      "  date(FROM_UNIXTIME(rx_timestamp)) as date, " +
-      "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
-      "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
-      "FROM " +
-      "  sig_index " +
-      "WHERE " +
-      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 7 DAY) AND " + 
-      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
-      "  object_id = 4 "+
-      "GROUP BY " +
-      "  date, var_id")
-c.execute(sql)
-day_records = c.fetchall()
+def create_prod_hist_by_week(object_id, site_name, render_file):
+  ## do SELECT
+  sql = ("SELECT " +
+        "  rx_timestamp, object_id, var_id, " +
+        "  date(FROM_UNIXTIME(rx_timestamp)) as date, " +
+        "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
+        "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
+        "FROM " +
+        "  sig_index " +
+        "WHERE " +
+        "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 7 DAY) AND " + 
+        "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
+        "  object_id = "+ str(object_id) + " " +
+        "GROUP BY " +
+        "  date, var_id")
+  c.execute(sql)
+  day_records = c.fetchall()
 
-batt_stk   = []
-batt_dstk  = []
-batt_day   = []
+  batt_stk   = []
+  batt_dstk  = []
+  batt_day   = []
 
-for day_record in day_records:
-  local_dt = datetime.fromtimestamp(day_record['rx_timestamp'])
-  # add data to lists
-  batt_day.append(local_dt.strftime ("%d/%m"))
-  batt_stk.append(round(day_record['prod']))
-  batt_dstk.append(round(day_record['cons']))
+  for day_record in day_records:
+    local_dt = datetime.fromtimestamp(day_record['rx_timestamp'])
+    # add data to lists
+    batt_day.append(local_dt.strftime ("%d/%m"))
+    batt_stk.append(round(day_record['prod']))
+    batt_dstk.append(round(day_record['cons']))
 
-# draw SVG
-chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
-chart.title = (u"Lestrem production journalière (en mAh)")
-chart.x_title = u"journée"
-chart.y_title = u"charge électrique (en mAh)"
-chart.x_labels = batt_day
+  # draw SVG
+  chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+  chart.title = (site_name + u" production journalière (en mAh)")
+  chart.x_title = u"journée"
+  chart.y_title = u"charge électrique (en mAh)"
+  chart.x_labels = batt_day
 
-chart.add(u"Production",    batt_stk)
-chart.add(u"Consommation", batt_dstk)
+  chart.add(u"Production",    batt_stk)
+  chart.add(u"Consommation", batt_dstk)
 
-chart.render_to_file('/usr/local/share/sensor/week_production.svg')
-
+  chart.render_to_file(render_file)
+  return;
 
 ### Production graph (by month)
-## do SELECT
-sql = ("SELECT " +
-      "  rx_timestamp, object_id, var_id, " +
-      "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%m-%Y') as date, " +
-      "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
-      "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
-      "FROM " +
-      "  sig_index " +
-      "WHERE " +
-      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 365 DAY) AND " + 
-      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
-      "  object_id = 4 "+
-      "GROUP BY " +
-      "  date, var_id " +
-      "ORDER BY " +
-      "  rx_timestamp")
-c.execute(sql)
-records = c.fetchall()
+def create_prod_graph_by_month(object_id, site_name, render_file):
+  ## do SELECT
+  sql = ("SELECT " +
+        "  rx_timestamp, object_id, var_id, " +
+        "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%m-%Y') as date, " +
+        "  (MAX(index_p) - MIN(index_p))/1000 AS prod, " +
+        "  (MAX(index_n) - MIN(index_n))/1000 AS cons " +
+        "FROM " +
+        "  sig_index " +
+        "WHERE " +
+        "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 365 DAY) AND " + 
+        "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
+        "  object_id = " + str(object_id) + " " +
+        "GROUP BY " +
+        "  date, var_id " +
+        "ORDER BY " +
+        "  rx_timestamp")
+  c.execute(sql)
+  records = c.fetchall()
 
-batt_stk   = []
-batt_dstk  = []
-batt_day   = []
+  batt_stk   = []
+  batt_dstk  = []
+  batt_day   = []
 
-for record in records:
-  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
-  # add data to lists
-  batt_day.append(local_dt.strftime ("%m/%Y"))
-  batt_stk.append(round(record['prod']))
-  batt_dstk.append(round(record['cons']))
+  for record in records:
+    local_dt = datetime.fromtimestamp(record['rx_timestamp'])
+    # add data to lists
+    batt_day.append(local_dt.strftime ("%m/%Y"))
+    batt_stk.append(round(record['prod']))
+    batt_dstk.append(round(record['cons']))
 
-# draw SVG
-chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
-chart.title = (u"Lestrem production mensuelle (en mAh)")
-chart.x_title = u"mois de l'année"
-chart.y_title = u"charge électrique (en mAh)"
-chart.x_labels = batt_day
+  # draw SVG
+  chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+  chart.title = (site_name + u" production mensuelle (en mAh)")
+  chart.x_title = u"mois de l'année"
+  chart.y_title = u"charge électrique (en mAh)"
+  chart.x_labels = batt_day
 
-chart.add(u"Production",    batt_stk)
-chart.add(u"Consommation", batt_dstk)
+  chart.add(u"Production",    batt_stk)
+  chart.add(u"Consommation", batt_dstk)
 
-chart.render_to_file('/usr/local/share/sensor/month_production.svg')
-
+  chart.render_to_file(render_file)
+  return;
 
 ### Production graph (for a month by day)
-## do SELECT
-sql = ("SELECT " +
-      "  rx_timestamp, object_id, var_id, " +
-      "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%d-%m') as date, " +
-      "  ((MAX(index_p) - MIN(index_p))/1000) - " +
-      "  ((MAX(index_n) - MIN(index_n))/1000) AS prod " +
-      "FROM " +
-      "  sig_index " +
-      "WHERE " +
-      "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 31 DAY) AND " + 
-      "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
-      "  object_id = 4 "+
-      "GROUP BY " +
-      "  date, var_id " +
-      "ORDER BY " +
-      "  rx_timestamp")
-c.execute(sql)
-records = c.fetchall()
+def create_prod_hist_by_day(object_id, site_name, render_file):
+  ## do SELECT
+  sql = ("SELECT " +
+        "  rx_timestamp, object_id, var_id, " +
+        "  DATE_FORMAT(FROM_UNIXTIME(rx_timestamp), '%d-%m') as date, " +
+        "  ((MAX(index_p) - MIN(index_p))/1000) - " +
+        "  ((MAX(index_n) - MIN(index_n))/1000) AS prod " +
+        "FROM " +
+        "  sig_index " +
+        "WHERE " +
+        "  rx_timestamp > UNIX_TIMESTAMP(CURDATE() - INTERVAL 31 DAY) AND " + 
+        "  rx_timestamp < UNIX_TIMESTAMP(CURDATE()) AND " + 
+        "  object_id = " + str(object_id) + " " +
+        "GROUP BY " +
+        "  date, var_id " +
+        "ORDER BY " +
+        "  rx_timestamp")
+  c.execute(sql)
+  records = c.fetchall()
 
-batt_stk   = []
-batt_day   = []
+  batt_stk   = []
+  batt_day   = []
 
-for record in records:
-  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
-  # add data to lists
-  batt_day.append(local_dt.strftime ("%d"))
-  batt_stk.append(round(record['prod']))
+  for record in records:
+    local_dt = datetime.fromtimestamp(record['rx_timestamp'])
+    # add data to lists
+    batt_day.append(local_dt.strftime ("%d"))
+    batt_stk.append(round(record['prod']))
 
-# draw SVG
-chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
-chart.title = (u"Lestrem production mensuelle derniers 31 jours (en mAh)")
-chart.x_title = u"journée"
-chart.y_title = u"charge électrique (en mAh)"
-chart.x_labels = batt_day
+  # draw SVG
+  chart = pygal.Bar(margin=50, rounded_bars=5, style=svg_custom_style)
+  chart.title = (site_name + u" production mensuelle derniers 31 jours (en mAh)")
+  chart.x_title = u"journée"
+  chart.y_title = u"charge électrique (en mAh)"
+  chart.x_labels = batt_day
 
-chart.add(u"Production",    batt_stk)
+  chart.add(u"Production", batt_stk)
 
-chart.render_to_file('/usr/local/share/sensor/by_day_production.svg')
-
+  chart.render_to_file(render_file)
+  return
 
 ### Current graph (min, max, avg)
-## do SELECT
-sql = ("SELECT"+ 
-       "  rx_timestamp, var_min, var_avg, var_max "+
-       "FROM sig_stat WHERE object_id = 4 "+
-       "ORDER BY rx_timestamp DESC LIMIT 16;")
-c.execute(sql)
+def create_36h_current_graph(object_id, site_name, render_file):
+  ## do SELECT
+  sql = ("SELECT"+ 
+         "  rx_timestamp, var_min, var_avg, var_max "+
+         "FROM sig_stat WHERE object_id = " + str(object_id) + " " +
+         "ORDER BY rx_timestamp DESC LIMIT 16;")
+  c.execute(sql)
 
-records = c.fetchall()
+  records = c.fetchall()
 
-sql_datetime = []
-sql_c_min    = []
-sql_c_avg    = []
-sql_c_max    = []
+  sql_datetime = []
+  sql_c_min    = []
+  sql_c_avg    = []
+  sql_c_max    = []
 
-for record in records:
-  local_dt = datetime.fromtimestamp(record['rx_timestamp'])
-  # convert UTC timestamp to localtime datetime string
-  #utc_dt = datetime.fromtimestamp(record['rx_timestamp'])
-  #now_timestamp = time.time()
-  #offset = (datetime.fromtimestamp(now_timestamp) - 
-  #          datetime.utcfromtimestamp(now_timestamp))
-  #local_dt = utc_dt + offset
-  # add data to lists
-  sql_datetime.append(local_dt.strftime ("%Y-%m-%d %H:%M:%S"))
-  sql_c_min.append(record['var_min'])
-  sql_c_avg.append(record['var_avg'])
-  sql_c_max.append(record['var_max'])
+  for record in records:
+    local_dt = datetime.fromtimestamp(record['rx_timestamp'])
+    # convert UTC timestamp to localtime datetime string
+    #utc_dt = datetime.fromtimestamp(record['rx_timestamp'])
+    #now_timestamp = time.time()
+    #offset = (datetime.fromtimestamp(now_timestamp) - 
+    #          datetime.utcfromtimestamp(now_timestamp))
+    #local_dt = utc_dt + offset
+    # add data to lists
+    sql_datetime.append(local_dt.strftime ("%Y-%m-%d %H:%M:%S"))
+    sql_c_min.append(record['var_min'])
+    sql_c_avg.append(record['var_avg'])
+    sql_c_max.append(record['var_max'])
 
-# reverse lists order
-sql_datetime.reverse()
-sql_c_min.reverse()
-sql_c_avg.reverse()
-sql_c_max.reverse()
+  # reverse lists order
+  sql_datetime.reverse()
+  sql_c_min.reverse()
+  sql_c_avg.reverse()
+  sql_c_max.reverse()
 
-# draw SVG
-line_chart = pygal.Line()
-line_chart.title = (u"Lestrem courant de batterie moyen (+ -> charge, - -> decharge) "+
-                    u"par 3 heures")
-line_chart.x_title = u"date et heure"
-line_chart.y_title = u"courant (en mA)"
-line_chart.x_labels = sql_datetime
-line_chart.x_label_rotation = 45
-line_chart.add(u"MIN", sql_c_min)
-line_chart.add(u"AVG", sql_c_avg)
-line_chart.add(u"MAX", sql_c_max)
-line_chart.render_to_file('/usr/local/share/sensor/36h_current.svg')
-exit(0)
+  # draw SVG
+  line_chart = pygal.Line()
+  line_chart.title = (site_name + u" courant de batterie moyen (+ -> charge, - -> decharge) "+
+                      u"par 3 heures")
+  line_chart.x_title = u"date et heure"
+  line_chart.y_title = u"courant (en mA)"
+  line_chart.x_labels = sql_datetime
+  line_chart.x_label_rotation = 45
+  line_chart.add(u"MIN", sql_c_min)
+  line_chart.add(u"AVG", sql_c_avg)
+  line_chart.add(u"MAX", sql_c_max)
 
+  line_chart.render_to_file(render_file)
+  return;
+
+# build graph
+if __name__ == '__main__':
+  #create_prod_hist_by_week
+  create_prod_hist_by_week(4, u'Lestrem', '/usr/local/share/sensor/lestrem_week_production.svg')
+  create_prod_hist_by_week(1, u'Tillières sur Avre', '/usr/local/share/sensor/tillieres_week_production.svg')
+
+  #create_prod_graph_by_month
+  create_prod_graph_by_month(4, u'Lestrem', '/usr/local/share/sensor/lestrem_month_production.svg')
+  create_prod_graph_by_month(1, u'Tillières sur Avre', '/usr/local/share/sensor/tillieres_month_production.svg')
+
+  #create_prod_hist_by_day
+  create_prod_hist_by_day(4, u'Lestrem', '/usr/local/share/sensor/lestrem_by_day_production.svg')
+  create_prod_hist_by_day(1, u'Tillières sur Avre', '/usr/local/share/sensor/tillieres_by_day_production.svg')
+
+  #create_36h_current_graph
+  create_36h_current_graph(4, u'Lestrem', '/usr/local/share/sensor/lestrem_36h_current.svg')
+  create_36h_current_graph(1, u'Tillières sur Avre', '/usr/local/share/sensor/tillieres_36h_current.svg')
+
+  exit(0)
