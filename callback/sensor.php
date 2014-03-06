@@ -127,7 +127,7 @@ if (! $mysqli->query($sql)) {
   exit();
 }
 
-sql_log("log: store msg object_id ".$obj_id."/payload ".$msg_payload);
+error_log("log: store msg ID#".$mysqli->insert_id." [object_id ".$obj_id."/payload ".$msg_payload."]");
 
 $mysqli->close();
 exit();
