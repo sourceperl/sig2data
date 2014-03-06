@@ -85,8 +85,8 @@ $sql = "INSERT INTO `sig_messages` (`message_id`, `object_id`, "
        .$msg_payload."', '".$station_id."', '".$station_lvl."' FROM DUAL "
        ."WHERE NOT EXISTS (SELECT * FROM `sig_messages` WHERE (`object_id` = '"
        .$obj_id."') AND ((`rx_timestamp`= '".$timestamp."') OR "
-       ."(`rx_timestamp` BETWEEN '".($timestamp + 600)."' AND '"
-       .($timestamp - 600)."' AND `payload` = '".$msg_payload."'))"
+       ."(`rx_timestamp` BETWEEN '".($timestamp - 600)."' AND '"
+       .($timestamp + 600)."' AND `payload` = '".$msg_payload."'))"
        ." LIMIT 1);";
 /* old request
 $sql = "INSERT INTO `sig_messages` (`message_id`, `object_id`, "

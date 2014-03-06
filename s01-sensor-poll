@@ -134,8 +134,8 @@ for row in objects_rec:
                      "WHERE NOT EXISTS (SELECT * FROM `sig_messages` "+
                      "WHERE (`object_id`='"+str(object_id)+"') AND "+
                      "((`rx_timestamp`='"+str(msg_timestamp)+"') OR "+
-                     "(`rx_timestamp` BETWEEN '"+str(msg_timestamp + 600)+"' AND '"+
-                     str(msg_timestamp - 600)+"' AND `payload` = '"+str(msg_pld)+
+                     "(`rx_timestamp` BETWEEN '"+str(msg_timestamp - 600)+"' AND '"+
+                     str(msg_timestamp + 600)+"' AND `payload` = '"+str(msg_pld)+
                      "')) LIMIT 1);")
 # old request
 #      sql_command = ("INSERT INTO `sig_messages` (`message_id`,`object_id`, "+
