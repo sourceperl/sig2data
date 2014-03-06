@@ -76,12 +76,26 @@ $row = $result->fetch_assoc();
 $obj_id = $row['object_id'];
 
 // insert in DB, if not already exist (if polling value or duplicate callback)
+// add 06/03/2014, duplicate bug workaround (before UNB modem firmware change):
+//   if same payload within a window of +/- 600s since last message,
+//   insert is discard
+$sql = "INSERT INTO `sig_messages` (`message_id`, `object_id`, "
+       ."`rx_timestamp`, `type`, `payload`, `station_id`, `station_lvl`) "
+       ."SELECT NULL, '".$obj_id."', '".$timestamp."', '".$msg_type."', '"
+       .$msg_payload."', '".$station_id."', '".$station_lvl."' FROM DUAL "
+       ."WHERE NOT EXISTS (SELECT * FROM `sig_messages` WHERE (`object_id` = '"
+       .$obj_id."') AND ((`rx_timestamp`= '".$timestamp."') OR "
+       ."(`rx_timestamp` BETWEEN '".($timestamp + 600)."' AND '"
+       .($timestamp - 600)."' AND `payload` = '".$msg_payload."'))"
+       ." LIMIT 1);";
+/* old request
 $sql = "INSERT INTO `sig_messages` (`message_id`, `object_id`, "
        ."`rx_timestamp`, `type`, `payload`, `station_id`, `station_lvl`) "
        ."SELECT NULL, '".$obj_id."', '".$timestamp."', '".$msg_type."', '"
        .$msg_payload."', '".$station_id."', '".$station_lvl."' FROM DUAL "
        ."WHERE NOT EXISTS (SELECT * FROM `sig_messages` WHERE `object_id` = '"
        .$obj_id."' AND `rx_timestamp`= '".$timestamp."' LIMIT 1);";
+*/
 $mysqli->query($sql);
 // check if insert or not (= duplicate)
 if ($mysqli->affected_rows == 0) {

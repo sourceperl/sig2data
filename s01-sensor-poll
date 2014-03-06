@@ -121,6 +121,10 @@ for row in objects_rec:
           break
 
       # insert into database (check if already exist for not ++id in InnoDB)
+      # add 06/03/2014 :
+      #   duplicate bug workaround (before UNB modem firmware change) :
+      #   if same payload within a window of +/- 600s since
+      #   last message, insert is discard
       sql_command = ("INSERT INTO `sig_messages` (`message_id`,`object_id`, "+
                      "`rx_timestamp`, `type`, `payload`, "+
                      "`station_id`, `station_lvl`) "+
@@ -128,8 +132,21 @@ for row in objects_rec:
                      "', '" +str(msg_type)+"', '"+str(msg_pld)+
                      "', '"+str(msg_station)+"', '"+str(msg_lvl)+"' FROM DUAL "+
                      "WHERE NOT EXISTS (SELECT * FROM `sig_messages` "+
-                     "WHERE `object_id`="+str(object_id)+" AND `rx_timestamp`="+
-                     str(msg_timestamp)+" LIMIT 1);")
+                     "WHERE (`object_id`='"+str(object_id)+"') AND "+
+                     "((`rx_timestamp`='"+str(msg_timestamp)+"') OR "+
+                     "(`rx_timestamp` BETWEEN '"+str(msg_timestamp + 600)+"' AND '"+
+                     str(msg_timestamp - 600)+"' AND `payload` = '"+str(msg_pld)+
+                     "')) LIMIT 1);")
+# old request
+#      sql_command = ("INSERT INTO `sig_messages` (`message_id`,`object_id`, "+
+#                     "`rx_timestamp`, `type`, `payload`, "+
+#                     "`station_id`, `station_lvl`) "+
+#                     "SELECT NULL, '"+str(object_id)+"','"+str(msg_timestamp)+
+#                     "', '" +str(msg_type)+"', '"+str(msg_pld)+
+#                     "', '"+str(msg_station)+"', '"+str(msg_lvl)+"' FROM DUAL "+
+#                     "WHERE NOT EXISTS (SELECT * FROM `sig_messages` "+
+#                     "WHERE `object_id`="+str(object_id)+" AND `rx_timestamp`="+
+#                     str(msg_timestamp)+" LIMIT 1);")
       if (args.verbosity >= 2):
         print("SQL: %s" % (sql_command))
       try:
